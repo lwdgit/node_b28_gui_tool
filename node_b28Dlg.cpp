@@ -67,9 +67,9 @@ CString UrlEncode(CString sIn)
                      if(isalnum(*pInTmp))
                             *pOutTmp++ = *pInTmp;
                      else
-                            if(isspace(*pInTmp))
-                                   *pOutTmp++ = '+';
-                            else
+                           // if(isspace(*pInTmp))
+                             //      *pOutTmp++ = '+';
+                            //else
                             {
                                    *pOutTmp++ = '%';
                                    *pOutTmp++ = toHex(*pInTmp>>4);
@@ -183,6 +183,7 @@ ON_BN_CLICKED(IDC_RADIO2, OnRadioTranslate)
 ON_BN_CLICKED(IDC_RADIO3, OnRadioTranslate)
 ON_BN_CLICKED(IDC_RADIO4, OnRadioTranslate)
 ON_BN_CLICKED(IDC_BUTTON3, OnDoWork)
+ON_MESSAGE(WM_USER+10, OnMyMessage)
 //}}AFX_MSG_MAP
 END_MESSAGE_MAP()
 
@@ -275,6 +276,7 @@ HCURSOR CNode_b28Dlg::OnQueryDragIcon()
 
 #define BIF_USENEWUI 0x0050
 #define BIF_NEWDIALOGSTYLE 0x0040
+
 
 static INT CALLBACK BrowseCallbackProc(HWND hwnd,  UINT uMsg, LPARAM lp,  LPARAM pData) 
 {
@@ -445,69 +447,6 @@ CString GetModuleDir()
 		return csFullPath.Left(nPos); 
 }
 
-void CNode_b28Dlg::OnDoWork() 
-{
-    CString srcPath, destPath, langPath;
-    BOOL onlyZH = ((CButton *)GetDlgItem(IDC_CHECK1))->GetCheck();
-    short workType = ((CButton *)GetDlgItem(IDC_RADIO2))->GetCheck() ? 1 : 0;
-    GetDlgItemText(IDC_EDIT_SRC, srcPath);
-    GetDlgItemText(IDC_EDIT_DEST, destPath);
-    GetDlgItemText(IDC_EDIT_LANG, langPath);
-    if (srcPath == "" || destPath == "" || (workType == 1 && langPath == "")) {
-        MessageBox("请先将路径配置完整！");
-        return;
-    }
-	
-    CString args = "",args1="", output = "";
-
-    if (((CButton *)GetDlgItem(IDC_RADIO1))->GetCheck()) {
-
-		args.Format("%s/bin/node \"%s/bin/node_b28.js\" -encode --src=%s --dest=%s", 
-			GetModuleDir(), ConvertGBKToUtf8(GetModuleDir()), UrlEncode(srcPath), UrlEncode(destPath));
-		args1.Format("%s/bin/node \"%s/bin/node_b28.js\" --src=%s --dest=%s",
-			GetModuleDir(), GetModuleDir(), srcPath, destPath);
-
-        if (onlyZH) {
-            args += " -zh";
-			args1 += " -zh";
-        }
-
-    } else if (((CButton *)GetDlgItem(IDC_RADIO2))->GetCheck()) {
-
-        args.Format("%s/bin/node \"%s/bin/node_b28.js\" -encode --src=%s --dest=%s -t", 
-			GetModuleDir(), ConvertGBKToUtf8(GetModuleDir()), UrlEncode(srcPath), UrlEncode(destPath));
-		args1.Format("%s/bin/node \"%s/bin/node_b28.js\" --src=%s --dest=%s -t",
-			GetModuleDir(), GetModuleDir(), srcPath, destPath);
-
-    } else if (((CButton *)GetDlgItem(IDC_RADIO3))->GetCheck()) {
-
-		args.Format("%s/bin/node \"%s/bin/JSON2EXECL.js\" -encode -f %s -o %s", 
-			GetModuleDir(), ConvertGBKToUtf8(GetModuleDir()), UrlEncode(srcPath), UrlEncode(destPath));
-		args1.Format("%s/bin/node \"%s/bin/JSON2EXECL.js\" -f %s -o %s",
-			GetModuleDir(), GetModuleDir(), srcPath, destPath);
-
-	} else if (((CButton *)GetDlgItem(IDC_RADIO4))->GetCheck()) {
-
-		args.Format("%s/bin/node \"%s/bin/EXCEL2JSON.js\" -encode -f %s -o %s", 
-			GetModuleDir(), ConvertGBKToUtf8(GetModuleDir()), UrlEncode(srcPath), UrlEncode(destPath));
-		args1.Format("%s/bin/node \"%s/bin/EXCEL2JSON.js\" -f %s -o %s",
-			GetModuleDir(), GetModuleDir(), srcPath, destPath);
-
-	}
-
-    setOutput("Excute:" + args1);
-	
-    output = ConvertUtf8ToGBK(ExecuteCmd(args));
-    if (output.Find("success!")<0) {
-        output += "\r\n执行失败，请检查错误信息! ↑↑↑\r\n";
-        setOutput(output);
-        MessageBox("执行失败，请检查错误信息!");
-    } else {
-        output += "\r\n执行成功!\r\n";
-        MessageBox("执行成功!");
-        setOutput(output);
-    }
-}
 
 TCHAR* StringToChar(CString& str)
 {
@@ -517,8 +456,7 @@ TCHAR* StringToChar(CString& str)
     return tr; 
 }
 
-
-CString CNode_b28Dlg::ExecuteCmd(CString str)
+CString ExecuteCmd(CString str)
 {
 	SECURITY_ATTRIBUTES sa;
 	HANDLE hRead,hWrite;
@@ -528,8 +466,8 @@ CString CNode_b28Dlg::ExecuteCmd(CString str)
 	sa.bInheritHandle = TRUE;
 	if (!CreatePipe(&hRead,&hWrite,&sa,0))
 	{
-		MessageBox("Error on CreatePipe()!");
-		return "";
+		AfxMessageBox("Error on CreatePipe()!");
+		return "Error: Error on CreatePipe()!";
 	}
 	STARTUPINFO si={sizeof(si)};
 	PROCESS_INFORMATION pi;
@@ -540,8 +478,8 @@ CString CNode_b28Dlg::ExecuteCmd(CString str)
 	TCHAR* cmdline=StringToChar(str);
 	if (!CreateProcess(NULL,cmdline,NULL,NULL,TRUE,NULL,NULL,NULL,&si,&pi))
 	{
-		MessageBox("Error on CreateProcess()!");
-		return "";
+		AfxMessageBox("Error on CreateProcess()!");
+		return "Error: Error on CreateProcess()!";
 	}
 	CloseHandle(hWrite);
 	
@@ -560,6 +498,13 @@ CString CNode_b28Dlg::ExecuteCmd(CString str)
 	return output;
 }
 
+struct threadInfo
+{
+	CString args;
+    //HWND hWnd;//主窗口句柄，用于消息的发送
+};
+threadInfo Info;
+
 CString outPut = "";
 void CNode_b28Dlg::setOutput(CString msg)
 {
@@ -568,6 +513,92 @@ void CNode_b28Dlg::setOutput(CString msg)
     int index=m_output.GetLineCount();//获得当前List控件一共多少行
     m_output.LineScroll(index,0);//将垂直滚动条滚动到最后一行
 }
+
+
+UINT ThreadFunc(LPVOID pParm)
+
+{
+    threadInfo *pInfo=(threadInfo*)pParm;
+    CString args = "";
+    args = ExecuteCmd(pInfo->args);
+
+    char *newMess = new char[args.GetLength() + 1];
+    strcpy(newMess,args);
+	::PostMessage(AfxGetMainWnd()->m_hWnd,WM_USER+10,(WPARAM)newMess,NULL);
+
+    return 0;
+}
+
+void CNode_b28Dlg::OnDoWork() 
+{
+    CString srcPath, destPath, langPath;
+    BOOL onlyZH = ((CButton *)GetDlgItem(IDC_CHECK1))->GetCheck();
+    short workType = ((CButton *)GetDlgItem(IDC_RADIO2))->GetCheck() ? 1 : 0;
+    GetDlgItemText(IDC_EDIT_SRC, srcPath);
+    GetDlgItemText(IDC_EDIT_DEST, destPath);
+    GetDlgItemText(IDC_EDIT_LANG, langPath);
+    if (srcPath == "" || destPath == "" || (workType == 1 && langPath == "")) {
+        MessageBox("请先将路径配置完整！");
+        return;
+    }
+	
+    CString args = "",args1="", output = "";
+
+    if (((CButton *)GetDlgItem(IDC_RADIO1))->GetCheck()) {
+
+		args.Format("%s/bin/node \"%s/bin/node_b28.js\" -encode --src=\"%s\" --dest=\"%s\"", 
+			GetModuleDir(), GetModuleDir(), UrlEncode(srcPath), UrlEncode(destPath));
+
+		args1.Format("%s/bin/node \"%s/bin/node_b28.js\" --src=\"%s\" --dest=\"%s\"",
+			GetModuleDir(), GetModuleDir(), srcPath, destPath);
+
+        if (onlyZH) {
+            args += " -zh";
+			args1 += " -zh";
+        }
+
+    } else if (((CButton *)GetDlgItem(IDC_RADIO2))->GetCheck()) {
+
+        args.Format("\"%s/bin/node\" \"%s/bin/node_b28.js\" -encode --src=\"%s\" --dest=\"%s\" -t", 
+			GetModuleDir(), GetModuleDir(), UrlEncode(srcPath), UrlEncode(destPath));
+
+		args1.Format("\"%s/bin/node\" \"%s/bin/node_b28.js\" --src=\"%s\" --dest=\"%s\" -t",
+			GetModuleDir(), GetModuleDir(), srcPath, destPath);
+
+    } else if (((CButton *)GetDlgItem(IDC_RADIO3))->GetCheck()) {
+
+		args.Format("\"%s/bin/node\" \"%s/bin/JSON2EXECL.js\" -encode -f \"%s\" -o \"%s\"", 
+			GetModuleDir(), GetModuleDir(), UrlEncode(srcPath), UrlEncode(destPath));
+
+		args1.Format("\"%s/bin/node\" \"%s/bin/JSON2EXECL.js\" -f \"%s\" -o \"%s\"",
+			GetModuleDir(), GetModuleDir(), srcPath, destPath);
+
+	} else if (((CButton *)GetDlgItem(IDC_RADIO4))->GetCheck()) {
+
+		args.Format("\"%s/bin/node\" \"%s/bin/EXCEL2JSON.js\" -encode -f \"%s\" -o \"%s\"", 
+			GetModuleDir(), GetModuleDir(), UrlEncode(srcPath), UrlEncode(destPath));
+
+		args1.Format("\"%s/bin/node\" \"%s/bin/EXCEL2JSON.js\" -f \"%s\" -o \"%s\"",
+			GetModuleDir(), GetModuleDir(), srcPath, destPath);
+
+	}
+
+    setOutput("Excute:" + args1);
+	((CButton *)GetDlgItem(IDC_BUTTON3))->EnableWindow(FALSE);
+	SetDlgItemText(IDC_BUTTON3, "执行中");
+
+	Info.args=args;
+
+	hThread =CreateThread(NULL,
+		0,
+		(LPTHREAD_START_ROUTINE)ThreadFunc,
+	    &Info,
+		0,
+		&ThreadID);
+	CloseHandle(hThread);
+}
+
+
 
 
 
@@ -583,5 +614,26 @@ CString CNode_b28Dlg::getRunEnvironment()
         return csFullPath; 
 }
 
+LRESULT CNode_b28Dlg::OnMyMessage(WPARAM wParam, LPARAM lParam)
+{
+	char* newMsg = (char*)wParam;
+	if(newMsg == NULL) {
+		return -1;
+	}
+	setOutput(newMsg);
 
-
+	CString output = "";
+    if (!strstr(newMsg, "success!")) {
+        output += "\r\n执行失败，请检查错误信息! ↑↑↑\r\n";
+        setOutput(output);
+        MessageBox("执行失败，请检查错误信息!");
+    } else {
+        output += "\r\n执行成功!\r\n";
+        MessageBox("执行成功!");
+        setOutput(output);
+    }
+	((CButton *)GetDlgItem(IDC_BUTTON3))->EnableWindow(TRUE);
+	SetDlgItemText(IDC_BUTTON3, "执  行");
+	delete newMsg;
+	return 0;
+}

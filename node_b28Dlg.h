@@ -15,10 +15,10 @@ class CNode_b28Dlg : public CDialog
 {
 // Construction
 public:
+	LRESULT OnMyMessage(WPARAM wParam, LPARAM lParam);
 	BOOL GetFilePath(char *FilePath, int type, HWND hParentWnd=NULL);
 	changeZhState();
 	CString getRunEnvironment();
-	CString ExecuteCmd(CString str);
 	void setOutput(CString msg);
 	CNode_b28Dlg(CWnd* pParent = NULL);	// standard constructor
 
@@ -38,6 +38,8 @@ public:
 protected:
 	HICON m_hIcon;
 
+	DWORD ThreadID;
+	HANDLE hThread;
 	// Generated message map functions
 	//{{AFX_MSG(CNode_b28Dlg)
 	virtual BOOL OnInitDialog();
